@@ -137,14 +137,16 @@ export default function PixelCanvas({
         pixelSize
       )
 
-      // 预览颜色（半透明）
-      ctx.fillStyle = selectedColor + '80'
-      ctx.fillRect(
-        hoveredPixel.x * pixelSize,
-        hoveredPixel.y * pixelSize,
-        pixelSize,
-        pixelSize
-      )
+      // 预览颜色（半透明）- 只在非禁用状态下显示
+      if (!disabled) {
+        ctx.fillStyle = selectedColor + '80'
+        ctx.fillRect(
+          hoveredPixel.x * pixelSize,
+          hoveredPixel.y * pixelSize,
+          pixelSize,
+          pixelSize
+        )
+      }
     }
   }, [pixels, gridSize, hoveredPixel, selectedColor, disabled, scale, pixelSize, canvasSize, showGrid, showCrosshair, isPanning])
 
@@ -223,8 +225,6 @@ export default function PixelCanvas({
       return
     }
 
-    if (disabled) return
-
     const coords = screenToCanvas(e.clientX, e.clientY)
     if (!coords) return
 
@@ -239,6 +239,9 @@ export default function PixelCanvas({
       setHoveredPixel(null)
       setHoveredInfo(null)
     }
+    
+    // Early return if disabled (after setting hover info)
+    if (disabled) return
   }, [isPanning, disabled, panStart, screenToCanvas, pixelSize, gridSize, pixels])
 
   const handleMouseUp = useCallback(() => {
@@ -508,17 +511,42 @@ export default function PixelCanvas({
 
       {/* Pixel Info Tooltip */}
       {hoveredInfo && !isPanning && (
-        <div className="absolute bottom-3 left-3 bg-white p-3 rounded-lg shadow-xl border border-gray-200 max-w-xs">
-          <div className="flex items-center gap-2 mb-1">
-            <div
-              className="w-4 h-4 border border-gray-300 rounded"
-              style={{ backgroundColor: hoveredInfo.color }}
-            />
-            <span className="font-semibold text-sm text-gray-900">{hoveredInfo.contributorName || 'Anonymous'}</span>
+        <div className="absolute bottom-3 left-3 bg-white p-4 rounded-xl shadow-2xl border-2 border-purple-200 max-w-sm animate-in fade-in duration-200 z-10">
+          <div className="space-y-2">
+            {/* User Info */}
+            <div className="flex items-center gap-3 pb-2 border-b border-gray-200">
+              <div className="flex items-center gap-2 flex-1">
+                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-white font-bold text-sm shadow-md">
+                  {(hoveredInfo.contributorName || 'A')[0].toUpperCase()}
+                </div>
+                <div>
+                  <p className="font-bold text-sm text-gray-900">{hoveredInfo.contributorName || 'Anonymous'}</p>
+                  <p className="text-xs text-gray-500">Contributor</p>
+                </div>
+              </div>
+              <div
+                className="w-10 h-10 border-2 border-gray-300 rounded-lg shadow-sm flex-shrink-0"
+                style={{ backgroundColor: hoveredInfo.color }}
+                title={hoveredInfo.color}
+              />
+            </div>
+            
+            {/* Color Info */}
+            <div className="flex items-center gap-2 text-xs">
+              <span className="text-gray-500 font-medium">Color:</span>
+              <span className="font-mono font-bold text-gray-900 bg-gray-100 px-2 py-0.5 rounded">{hoveredInfo.color}</span>
+            </div>
+            
+            {/* Message */}
+            {hoveredInfo.contributorMessage && (
+              <div className="pt-2 border-t border-gray-200">
+                <p className="text-xs text-gray-500 font-medium mb-1">Message:</p>
+                <p className="text-sm text-gray-700 italic leading-relaxed bg-purple-50 p-2 rounded-lg border border-purple-100">
+                  "{hoveredInfo.contributorMessage}"
+                </p>
+              </div>
+            )}
           </div>
-          {hoveredInfo.contributorMessage && (
-            <p className="text-xs text-gray-600 italic">"{hoveredInfo.contributorMessage}"</p>
-          )}
         </div>
       )}
 
