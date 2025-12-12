@@ -15,6 +15,7 @@ interface PixelCanvasProps {
   pixels: Pixel[]
   selectedColor: string
   onPixelClick: (x: number, y: number) => void
+  onHoverPixel?: (pixel: Pixel | null) => void
   disabled?: boolean
 }
 
@@ -23,6 +24,7 @@ export default function PixelCanvas({
   pixels,
   selectedColor,
   onPixelClick,
+  onHoverPixel,
   disabled = false,
 }: PixelCanvasProps) {
   const containerRef = useRef<HTMLDivElement>(null)
@@ -235,9 +237,11 @@ export default function PixelCanvas({
       setHoveredPixel({ x, y })
       const pixelInfo = pixels.find(p => p.positionX === x && p.positionY === y)
       setHoveredInfo(pixelInfo || null)
+      onHoverPixel?.(pixelInfo || null)
     } else {
       setHoveredPixel(null)
       setHoveredInfo(null)
+      onHoverPixel?.(null)
     }
     
     // Early return if disabled (after setting hover info)
@@ -493,6 +497,7 @@ export default function PixelCanvas({
             onMouseLeave={() => {
               setHoveredPixel(null)
               setHoveredInfo(null)
+              onHoverPixel?.(null)
               setIsPanning(false)
             }}
             onContextMenu={handleContextMenu}
@@ -509,51 +514,66 @@ export default function PixelCanvas({
         </div>
       )}
 
-      {/* Pixel Info Tooltip */}
-      {hoveredInfo && !isPanning && (
-        <div className="absolute bottom-3 left-3 bg-white p-4 rounded-xl shadow-2xl border-2 border-purple-200 max-w-sm animate-in fade-in duration-200 z-10">
-          <div className="space-y-2">
+      {/* Help Text */}
+      {!isFullscreen && (
+        <div className="absolute bottom-3 left-1/2 transform -translate-x-1/2 bg-white/90 backdrop-blur-sm px-3 py-1.5 rounded-lg text-xs text-gray-600 shadow-sm border border-gray-200">
+          <span className="font-semibold">Scroll to zoom • Shift+Drag to pan</span>
+        </div>
+      )}
+
+      {/* Fullscreen Pixel Info */}
+      {isFullscreen && hoveredInfo && !isPanning && (
+        <div className="absolute bottom-6 left-6 bg-white/95 backdrop-blur-md p-4 rounded-xl shadow-2xl border-2 border-purple-300 max-w-sm z-20">
+          <h3 className="text-sm font-bold text-gray-900 mb-3 flex items-center gap-2">
+            <svg className="w-4 h-4 text-purple-600" fill="currentColor" viewBox="0 0 20 20">
+              <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+            </svg>
+            Pixel Details
+          </h3>
+          <div className="space-y-3">
+            {/* Position */}
+            <div className="flex items-center justify-between pb-2 border-b border-gray-200">
+              <span className="text-xs text-gray-600 font-medium">Position:</span>
+              <span className="font-mono font-bold text-sm text-gray-900">
+                ({hoveredInfo.positionX}, {hoveredInfo.positionY})
+              </span>
+            </div>
+
             {/* User Info */}
             <div className="flex items-center gap-3 pb-2 border-b border-gray-200">
-              <div className="flex items-center gap-2 flex-1">
-                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-white font-bold text-sm shadow-md">
-                  {(hoveredInfo.contributorName || 'A')[0].toUpperCase()}
-                </div>
-                <div>
-                  <p className="font-bold text-sm text-gray-900">{hoveredInfo.contributorName || 'Anonymous'}</p>
-                  <p className="text-xs text-gray-500">Contributor</p>
-                </div>
+              <div className="w-8 h-8 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-white font-bold text-sm shadow-md flex-shrink-0">
+                {(hoveredInfo.contributorName || 'A')[0].toUpperCase()}
               </div>
-              <div
-                className="w-10 h-10 border-2 border-gray-300 rounded-lg shadow-sm flex-shrink-0"
-                style={{ backgroundColor: hoveredInfo.color }}
-                title={hoveredInfo.color}
-              />
+              <div className="flex-1 min-w-0">
+                <p className="text-xs text-gray-600 font-medium">Contributor:</p>
+                <p className="font-bold text-sm text-gray-900 truncate">
+                  {hoveredInfo.contributorName || 'Anonymous'}
+                </p>
+              </div>
             </div>
             
             {/* Color Info */}
-            <div className="flex items-center gap-2 text-xs">
-              <span className="text-gray-500 font-medium">Color:</span>
-              <span className="font-mono font-bold text-gray-900 bg-gray-100 px-2 py-0.5 rounded">{hoveredInfo.color}</span>
+            <div className="flex items-center gap-3 pb-2 border-b border-gray-200">
+              <div
+                className="w-10 h-10 border-2 border-gray-300 rounded-lg shadow-sm flex-shrink-0"
+                style={{ backgroundColor: hoveredInfo.color }}
+              />
+              <div className="flex-1 min-w-0">
+                <p className="text-xs text-gray-600 font-medium">Color:</p>
+                <p className="font-mono font-bold text-sm text-gray-900">{hoveredInfo.color}</p>
+              </div>
             </div>
             
             {/* Message */}
             {hoveredInfo.contributorMessage && (
-              <div className="pt-2 border-t border-gray-200">
-                <p className="text-xs text-gray-500 font-medium mb-1">Message:</p>
-                <p className="text-sm text-gray-700 italic leading-relaxed bg-purple-50 p-2 rounded-lg border border-purple-100">
+              <div>
+                <p className="text-xs text-gray-600 font-medium mb-2">Message:</p>
+                <p className="text-sm text-gray-700 italic leading-relaxed bg-purple-50 p-3 rounded-lg border border-purple-100">
                   "{hoveredInfo.contributorMessage}"
                 </p>
               </div>
             )}
           </div>
-        </div>
-      )}
-
-      {/* Help Text */}
-      {!isFullscreen && (
-        <div className="absolute bottom-3 left-1/2 transform -translate-x-1/2 bg-white/90 backdrop-blur-sm px-3 py-1.5 rounded-lg text-xs text-gray-600 shadow-sm border border-gray-200">
-          <span className="font-semibold">Scroll to zoom • Shift+Drag to pan</span>
         </div>
       )}
 

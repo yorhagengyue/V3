@@ -62,11 +62,18 @@ export default function CanvasPage({ params }: { params: { id: string } }) {
   const [selectedColor, setSelectedColor] = useState('#ffffff')
   const [loading, setLoading] = useState(true)
   const [session, setSession] = useState<any>(null)
-  const [showBlessingMessage, setShowBlessingMessage] = useState(false)
+  const [showBlessingMessage, setShowBlessingMessage] = useState(true)
   const [showDonateModal, setShowDonateModal] = useState(false)
   const [showLeaderboard, setShowLeaderboard] = useState(false)
   const [message, setMessage] = useState('')
   const [donateAmount, setDonateAmount] = useState(10)
+  const [hoveredPixelInfo, setHoveredPixelInfo] = useState<{
+    positionX: number
+    positionY: number
+    color: string
+    contributorName?: string
+    contributorMessage?: string
+  } | null>(null)
 
   // 检查会话
   useEffect(() => {
@@ -270,7 +277,7 @@ export default function CanvasPage({ params }: { params: { id: string } }) {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 pb-32">
       {/* Top Navigation */}
       <header className="bg-white border-b border-gray-200 sticky top-0 z-40">
         <div className="max-w-7xl mx-auto px-6 py-4">
@@ -377,11 +384,27 @@ export default function CanvasPage({ params }: { params: { id: string } }) {
                 pixels={project.pixels}
                 selectedColor={selectedColor}
                 onPixelClick={handlePixelClick}
+                onHoverPixel={setHoveredPixelInfo}
                 disabled={!tokenStatus || tokenStatus.balance < 1 || tokenStatus.isCoolingDown || !message.trim()}
               />
+
+              {/* Toggle Button - Shows when canvas is complete and overlay is hidden */}
+              {project.pixelsPlaced >= project.pixelsTotal && !showBlessingMessage && (
+                <div className="absolute top-4 right-4 z-40">
+                  <button
+                    onClick={() => setShowBlessingMessage(true)}
+                    className="px-6 py-3 bg-gradient-to-r from-purple-600 to-pink-600 text-white font-bold rounded-lg hover:from-purple-700 hover:to-pink-700 transition-all shadow-lg flex items-center gap-2"
+                  >
+                    <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                      <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                    </svg>
+                    View Message
+                  </button>
+                </div>
+              )}
               
               {/* Blessing Message Overlay - Shows when canvas is 100% complete */}
-              {project.pixelsPlaced >= project.pixelsTotal && (
+              {project.pixelsPlaced >= project.pixelsTotal && showBlessingMessage && (
                 <div className="absolute inset-0 bg-gradient-to-br from-purple-900/95 via-indigo-900/95 to-blue-900/95 backdrop-blur-sm rounded-xl flex items-center justify-center z-50">
                   <div className="text-center px-8 py-12 max-w-2xl">
                     <div className="mb-6">
@@ -498,6 +521,71 @@ export default function CanvasPage({ params }: { params: { id: string } }) {
                   </span>
                 </div>
               </div>
+            </div>
+
+            {/* Pixel Details - Always visible */}
+            <div className="bg-white p-4 rounded-xl border-2 border-purple-200 shadow-lg">
+              <h3 className="text-base font-bold text-gray-900 mb-3 flex items-center gap-2">
+                <svg className="w-5 h-5 text-purple-600" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                </svg>
+                Pixel Details
+              </h3>
+              
+              {hoveredPixelInfo ? (
+                <div className="space-y-3">
+                  {/* Position */}
+                  <div className="flex items-center justify-between pb-2 border-b border-gray-200">
+                    <span className="text-xs text-gray-500 font-medium">Position:</span>
+                    <span className="font-mono font-bold text-sm text-gray-900">
+                      ({hoveredPixelInfo.positionX}, {hoveredPixelInfo.positionY})
+                    </span>
+                  </div>
+
+                  {/* User Info */}
+                  <div className="flex items-center gap-3 pb-2 border-b border-gray-200">
+                    <div className="w-8 h-8 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-white font-bold text-sm shadow-md flex-shrink-0">
+                      {(hoveredPixelInfo.contributorName || 'A')[0].toUpperCase()}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs text-gray-500 font-medium">Contributor:</p>
+                      <p className="font-bold text-sm text-gray-900 truncate">
+                        {hoveredPixelInfo.contributorName || 'Anonymous'}
+                      </p>
+                    </div>
+                  </div>
+                  
+                  {/* Color Info */}
+                  <div className="flex items-center gap-3 pb-2 border-b border-gray-200">
+                    <div
+                      className="w-10 h-10 border-2 border-gray-300 rounded-lg shadow-sm flex-shrink-0"
+                      style={{ backgroundColor: hoveredPixelInfo.color }}
+                    />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs text-gray-500 font-medium">Color:</p>
+                      <p className="font-mono font-bold text-sm text-gray-900">{hoveredPixelInfo.color}</p>
+                    </div>
+                  </div>
+                  
+                  {/* Message */}
+                  {hoveredPixelInfo.contributorMessage && (
+                    <div>
+                      <p className="text-xs text-gray-500 font-medium mb-2">Message:</p>
+                      <p className="text-sm text-gray-700 italic leading-relaxed bg-purple-50 p-3 rounded-lg border border-purple-100">
+                        "{hoveredPixelInfo.contributorMessage}"
+                      </p>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="text-center py-8">
+                  <svg className="w-12 h-12 text-gray-300 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5M7.188 2.239l.777 2.897M5.136 7.965l-2.898-.777M13.95 4.05l-2.122 2.122m-5.657 5.656l-2.12 2.122" />
+                  </svg>
+                  <p className="text-sm text-gray-500 font-medium">Hover over a pixel</p>
+                  <p className="text-xs text-gray-400 mt-1">to see details</p>
+                </div>
+              )}
             </div>
           </div>
         </div>
