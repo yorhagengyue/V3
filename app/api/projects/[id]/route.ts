@@ -41,7 +41,7 @@ export async function GET(
         progressPercentage: Number(((project.pixelsPlaced / project.pixelsTotal) * 100).toFixed(2)),
         colorPalette: project.colorPalette 
           ? (typeof project.colorPalette.colors === 'string' 
-              ? project.colorPalette.colors.split(',')
+              ? JSON.parse(project.colorPalette.colors)
               : project.colorPalette.colors)
           : [],
         // Every.org integration

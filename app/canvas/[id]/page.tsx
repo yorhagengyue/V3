@@ -163,6 +163,12 @@ export default function CanvasPage({ params }: { params: { id: string } }) {
       throw new Error(`Please wait for cooldown to end (${tokenStatus.cooldownRemaining} seconds remaining)`)
     }
 
+    // Check if message is provided (required)
+    if (!message || message.trim().length === 0) {
+      showNotification('Please add a message before placing your pixel! ✍️', 'error')
+      throw new Error('Message is required')
+    }
+
     try {
       const response = await fetch('/api/pixels/place', {
         method: 'POST',
@@ -341,13 +347,37 @@ export default function CanvasPage({ params }: { params: { id: string } }) {
         <div className="grid lg:grid-cols-[1fr_380px] gap-6">
           {/* Canvas Section */}
           <div className="space-y-4">
+            {/* Message Input - MOVED TO TOP FOR VISIBILITY */}
+            <div className="bg-white p-5 rounded-xl border border-gray-200 shadow-sm">
+              <label className="block text-sm font-semibold text-gray-700 mb-3">
+                Add a message <span className="text-red-500">*</span> <span className="text-xs font-normal text-gray-500">(required)</span>
+              </label>
+              <input
+                type="text"
+                value={message}
+                onChange={(e) => setMessage(e.target.value)}
+                placeholder="Share your thoughts with the community... (required)"
+                maxLength={200}
+                required
+                className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent text-sm ${
+                  message.trim().length === 0 ? 'border-red-300 bg-red-50' : 'border-gray-300'
+                }`}
+              />
+              <div className="flex justify-between items-center mt-2">
+                <p className="text-xs text-gray-500">{message.length}/200 characters</p>
+                {message.trim().length === 0 && (
+                  <p className="text-xs text-red-500 font-semibold">⚠️ Message required to place pixel</p>
+                )}
+              </div>
+            </div>
+
             <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm relative">
               <PixelCanvas
                 gridSize={project.gridSize}
                 pixels={project.pixels}
                 selectedColor={selectedColor}
                 onPixelClick={handlePixelClick}
-                disabled={!tokenStatus || tokenStatus.balance < 1 || tokenStatus.isCoolingDown}
+                disabled={!tokenStatus || tokenStatus.balance < 1 || tokenStatus.isCoolingDown || !message.trim()}
               />
               
               {/* Blessing Message Overlay - Shows when canvas is 100% complete */}
@@ -400,22 +430,6 @@ export default function CanvasPage({ params }: { params: { id: string } }) {
                 </div>
               )}
             </div>
-            
-            {/* Message Input */}
-            <div className="bg-white p-5 rounded-xl border border-gray-200 shadow-sm">
-              <label className="block text-sm font-semibold text-gray-700 mb-3">
-                Add a message (optional)
-              </label>
-              <input
-                type="text"
-                value={message}
-                onChange={(e) => setMessage(e.target.value)}
-                placeholder="Share your thoughts with the community..."
-                maxLength={200}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent text-sm"
-              />
-              <p className="text-xs text-gray-500 mt-2">{message.length}/200 characters</p>
-            </div>
           </div>
 
           {/* Sidebar */}
@@ -434,7 +448,7 @@ export default function CanvasPage({ params }: { params: { id: string } }) {
               colors={project.colorPalette}
               selectedColor={selectedColor}
               onSelectColor={setSelectedColor}
-              disabled={!tokenStatus || tokenStatus.balance < 1 || tokenStatus.isCoolingDown}
+              disabled={!tokenStatus || tokenStatus.balance < 1 || tokenStatus.isCoolingDown || !message.trim()}
             />
 
             {/* Stats Card */}
