@@ -1,0 +1,303 @@
+// Pixel Canvas for Change - Database Schema
+// Version: 3.0 (Next.js + Prisma + PostgreSQL)
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================
+// 项目表 - Canvas Projects
+// ============================================
+model Project {
+  id          String   @id @default(cuid())
+  title       String
+  description String   @db.Text
+
+  // Every.org 集成
+  everyorgSlug     String?  @unique
+  everyorgEin      String?
+  everyorgLogoUrl  String?
+  everyorgCoverUrl String?
+
+  // 筹款目标
+  targetAmount Decimal @default(10000) @db.Decimal(10, 2)
+  amountRaised Decimal @default(0) @db.Decimal(10, 2)
+  currency     String  @default("USD")
+
+  // 画布配置
+  gridSize     Int @default(100)
+  pixelsTotal  Int @default(10000)
+
+  // 统计
+  pixelsPlaced      Int @default(0)
+  uniquePixels      Int @default(0)
+  totalContributors Int @default(0)
+
+  // 状态
+  status Status @default(ACTIVE)
+
+  // 时间戳
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // 关系
+  pixels       Pixel[]
+  colorPalette ColorPalette?
+  userTokens   UserTokens[]
+  donations    Donation[]
+
+  @@index([status])
+}
+
+enum Status {
+  ACTIVE
+  PAUSED
+  COMPLETED
+}
+
+// ============================================
+// 像素表 - Pixel State
+// ============================================
+model Pixel {
+  id        String   @id @default(cuid())
+  projectId String
+
+  // 位置
+  positionX Int
+  positionY Int
+
+  // 当前状态
+  color              String
+  contributorId      String?
+  contributorName    String?
+  contributorMessage String?  @db.VarChar(200)
+  placedAt           DateTime @default(now())
+
+  // 保护期（可选）
+  protectedUntil DateTime?
+
+  // 统计
+  timesOverwritten Int @default(0)
+  totalLikes       Int @default(0)
+
+  // 关系
+  project Project        @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  history PixelHistory[]
+
+  @@unique([projectId, positionX, positionY])
+  @@index([projectId])
+}
+
+// ============================================
+// 像素历史表 - Pixel Version History
+// ============================================
+model PixelHistory {
+  id      String   @id @default(cuid())
+  pixelId String
+
+  contributorId      String?
+  contributorName    String?
+  contributorMessage String?  @db.VarChar(200)
+  color              String
+  placedAt           DateTime @default(now())
+
+  wasOverwrite  Boolean @default(false)
+  previousColor String?
+
+  // 关系
+  pixel Pixel @relation(fields: [pixelId], references: [id], onDelete: Cascade)
+
+  @@index([pixelId, placedAt])
+  @@index([placedAt])
+}
+
+// ============================================
+// 用户表 - User Accounts
+// ============================================
+model User {
+  id       String  @id @default(cuid())
+  username String  @unique
+  email    String? @unique
+
+  // Session
+  sessionId String? @unique
+
+  // 统计
+  totalPixelsPlaced Int     @default(0)
+  totalDonated      Decimal @default(0) @db.Decimal(10, 2)
+
+  createdAt    DateTime @default(now())
+  lastActiveAt DateTime @default(now())
+
+  // 关系
+  userTokens       UserTokens[]
+  donations        Donation[]
+  userAchievements UserAchievement[]
+
+  @@index([email])
+  @@index([sessionId])
+}
+
+// ============================================
+// 用户代币表 - User Pixel Credits per Project
+// ============================================
+model UserTokens {
+  id        String @id @default(cuid())
+  userId    String
+  projectId String
+
+  // 余额
+  balance     Int @default(0)
+  totalEarned Int @default(0)
+  totalSpent  Int @default(0)
+
+  // 统计
+  pixelsPlaced Int     @default(0)
+  totalDonated Decimal @default(0) @db.Decimal(10, 2)
+
+  // 冷却
+  lastPlacedAt  DateTime?
+  cooldownUntil DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // 关系
+  user         User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  project      Project            @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  transactions TokenTransaction[]
+
+  @@unique([userId, projectId])
+  @@index([userId])
+  @@index([projectId])
+}
+
+// ============================================
+// 代币交易表 - Token Transaction Log
+// ============================================
+model TokenTransaction {
+  id           String @id @default(cuid())
+  userTokensId String
+
+  type        TransactionType
+  amount      Int
+  description String?
+
+  sourceType String?
+  sourceId   String?
+
+  balanceBefore Int
+  balanceAfter  Int
+
+  createdAt DateTime @default(now())
+
+  // 关系
+  userTokens UserTokens @relation(fields: [userTokensId], references: [id], onDelete: Cascade)
+
+  @@index([userTokensId, createdAt])
+}
+
+enum TransactionType {
+  EARN
+  SPEND
+  BONUS
+  REFUND
+}
+
+// ============================================
+// 捐款表 - Donation Records
+// ============================================
+model Donation {
+  id        String @id @default(cuid())
+  projectId String
+  userId    String
+
+  amount        Decimal @db.Decimal(10, 2)
+  pixelsAwarded Int
+  message       String? @db.VarChar(200)
+
+  // 模拟标记
+  isSimulated Boolean @default(true)
+
+  // 真实捐款信息（未来）
+  everyorgDonationId String?
+  transactionId      String?
+
+  status DonationStatus @default(SUCCESS)
+
+  createdAt DateTime @default(now())
+
+  // 关系
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([projectId])
+  @@index([userId])
+  @@index([createdAt])
+}
+
+enum DonationStatus {
+  PENDING
+  SUCCESS
+  FAILED
+}
+
+// ============================================
+// 调色板表 - Color Palette Config
+// ============================================
+model ColorPalette {
+  id        String @id @default(cuid())
+  projectId String @unique
+
+  name   String?
+  colors Json // ["#ffffff", "#e4e4e4", ...]
+
+  createdAt DateTime @default(now())
+
+  // 关系
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+}
+
+// ============================================
+// 成就表 - Achievement Definitions
+// ============================================
+model Achievement {
+  id   String @id @default(cuid())
+  code String @unique
+
+  title       String
+  description String @db.Text
+  iconUrl     String?
+  tokenReward Int    @default(0)
+
+  criteria Json // 成就解锁条件
+
+  createdAt DateTime @default(now())
+
+  // 关系
+  userAchievements UserAchievement[]
+}
+
+// ============================================
+// 用户成就表 - User Achievement Progress
+// ============================================
+model UserAchievement {
+  id            String @id @default(cuid())
+  userId        String
+  achievementId String
+
+  unlockedAt DateTime @default(now())
+
+  // 关系
+  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  achievement Achievement @relation(fields: [achievementId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, achievementId])
+  @@index([userId])
+}
+
