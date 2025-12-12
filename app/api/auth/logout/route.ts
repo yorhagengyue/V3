@@ -1,11 +1,10 @@
 import { NextResponse } from 'next/server'
-import { redirect } from 'next/navigation'
 import { clearSession } from '@/lib/auth'
 
 export async function POST() {
   try {
     await clearSession()
-    redirect('/')
+    return NextResponse.json({ success: true })
   } catch (error) {
     console.error('Logout error:', error)
     return NextResponse.json(
@@ -18,7 +17,7 @@ export async function POST() {
 export async function GET() {
   try {
     await clearSession()
-    redirect('/')
+    return NextResponse.json({ success: true })
   } catch (error) {
     console.error('Logout error:', error)
     return NextResponse.json(

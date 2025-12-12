@@ -1,6 +1,8 @@
 'use client'
 
+import { useEffect, useState } from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import PixelCard from '@/components/ui/PixelCard'
 
 interface Project {
@@ -32,7 +34,59 @@ interface ProjectsClientProps {
   stats: UserStats
 }
 
-export default function ProjectsClient({ session, projects, stats }: ProjectsClientProps) {
+export default function ProjectsClient({ session, projects, stats: initialStats }: ProjectsClientProps) {
+  const router = useRouter()
+  const [stats, setStats] = useState<UserStats>(initialStats)
+
+  // Refresh stats when component mounts or page gains focus
+  const refreshStats = async () => {
+    try {
+      const response = await fetch('/api/user/stats')
+      if (response.ok) {
+        const data = await response.json()
+        if (data.success) {
+          setStats(data.data)
+        }
+      }
+    } catch (error) {
+      console.error('Failed to refresh stats:', error)
+    }
+  }
+
+  useEffect(() => {
+    // Refresh stats when page loads
+    refreshStats()
+
+    // Refresh stats when page becomes visible
+    const handleVisibilityChange = () => {
+      if (!document.hidden) {
+        refreshStats()
+      }
+    }
+
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
+    }
+  }, [])
+
+  const handleLogout = async () => {
+    try {
+      const response = await fetch('/api/auth/logout', {
+        method: 'POST',
+      })
+      
+      if (response.ok) {
+        router.push('/login')
+      } else {
+        alert('Logout failed. Please try again.')
+      }
+    } catch (error) {
+      console.error('Logout error:', error)
+      alert('Logout failed. Please try again.')
+    }
+  }
+
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
@@ -57,14 +111,12 @@ export default function ProjectsClient({ session, projects, stats }: ProjectsCli
                 <p className="text-xs text-gray-500">Signed in as</p>
                 <p className="text-gray-900 font-semibold">{session.username}</p>
               </div>
-              <form action="/api/auth/logout" method="POST">
-                <button 
-                  type="submit"
-                  className="px-6 py-2.5 border border-gray-300 text-gray-700 text-sm font-medium rounded-lg hover:bg-gray-50 transition-colors"
-                >
-                  Logout
-                </button>
-              </form>
+              <button 
+                onClick={handleLogout}
+                className="px-6 py-2.5 border border-gray-300 text-gray-700 text-sm font-medium rounded-lg hover:bg-gray-50 transition-colors"
+              >
+                Logout
+              </button>
             </div>
           </div>
         </div>
